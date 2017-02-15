@@ -10,9 +10,69 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 body {
   background: #fafafa;
   font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  color: #333;
+  color: #888;
+  padding: 20px;
 }
 
 .page-title {
   outline: none;
+}
+
+paper-input {
+
+}
+
+iframe {
+	border-width: 0px;
+
+}
+
+.form {
+    max-width: 500px;
+    padding-top: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    max-height: 300px;
+    padding: 20px;
+}
+
+.mainContent {
+	background-image: url('../images/nxbg.png') !important;
+	background-position-x: -300px !important;
+}
+@media(min-width: 1181px) {
+	.mainContent {
+		height: 600px !important;
+		min-height: 600px !important;
+	}
+}
+
+@media(max-width: 1180px) {
+	#news {
+		display: none;
+	}
+	.mainContent {
+		height: 300px !important;
+	}
+}
+
+#news {
+	min-width: 500px;
+	width: 600px;
+	margin-left: 50px;
+	min-height: 700px;
+	scroll-behavior: none;
+	position: absolute;
+	right: 40px;
+}
+
+.primary {
+	background-color: #2199e8;
+	color: white;
+    --paper-button-ink-color: #2199e8;
+    margin-top: 10px;
+    float: right;
+}
+
+.footer {
+	color: #aaa;
 }
