@@ -1,0 +1,5 @@
+{
+  "require": {
+    "nuxeo/nuxeo-automation-php-client": "1.5.0-rc3"
+  }
+}

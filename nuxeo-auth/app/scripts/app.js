@@ -14,18 +14,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // and give it some initial binding values
   // Learn more about auto-binding templates at http://goo.gl/Dx1u2g
   var app = document.querySelector('#app');
-  
+
   // Sets app default base URL
   app.baseUrl = '/';
-  if (window.location.port === '') {  // if production
-    // Uncomment app.baseURL below and
-    // set app.baseURL to '/your-pathname/' if running from folder in production
-    // app.baseUrl = '/polymer-starter-kit/';
-  }
-  
-  // See https://github.com/Polymer/polymer/issues/1381
-  window.addEventListener('WebComponentsReady', function() {
-    // imports are loaded and elements have been registered
-  });
 
+  // Read the query values
+  // Found on http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+  var qs = (function(a) {
+    if (a == "") return {};
+    var b = {};
+    for (var i = 0; i < a.length; ++i)
+    {
+        var p=a[i].split('=', 2);
+        if (p.length == 1)
+            b[p[0]] = "";
+        else
+            b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
+    }
+    return b;
+  })(window.location.search.substr(1).split('&'));
+
+  app.client_id = qs['client_id'];
+  app.response_type = qs['response_type'];
+  app.state = qs['state'];
+  app.redirect_uri = qs['redirect_uri'];
+
+  app.linkAccount = function() {
+    app.error = undefined;
+    app.loading = true;
+    app.$.ajax.method = 'POST';
+    app.$.ajax.contentType = 'application/json';
+    app.$.ajax.body = {'user': app.user, 'url': app.url, 'password': app.password};
+    var req = app.$.ajax.generateRequest();
+    req.completes.then(function (req) {
+      top.location = app.redirect_uri + "#state=" + app.state + "&token_type=Bearer&access_token=" + req.response.token;
+      app.loading = false;
+    }).catch(function (e) {
+      if (app.$.ajax.lastError.status == 302) {
+        app.error = 'Invalid credentials';  
+      } else {
+        app.error = 'Unknown error occured';
+      }
+      app.loading = false;
+    });
+  }
 })(document);

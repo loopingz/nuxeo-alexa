@@ -66,13 +66,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <!-- endbuild -->
 
   <template is="dom-bind" id="app">
+    <iron-ajax id="ajax" url="link.php" debounce-duration="300"></iron-ajax>
     <paper-material elevation="1" class="mainContent layout horizontal wrap">
       <div class="form">
         Please login to your Nuxeo instance to enable Alexa Skill
-        <paper-input label="Nuxeo Server URL"></paper-input>
-        <paper-input label="Username"></paper-input>
-        <paper-input label="Password" type="password"></paper-input>
-        <paper-button class="primary">Link</paper-button>
+        <template is="dom-if" if="[[error]]">
+        <div class="error">[[error]]</div>
+        </template>
+        <paper-input label="Nuxeo Server URL" value="{{url}}"></paper-input>
+        <paper-input label="Username" value="{{user}}"></paper-input>
+        <paper-input label="Password" value="{{password}}" type="password"></paper-input>
+        <paper-button class="primary" on-tap="linkAccount" disabled="{{loading}}"><template is="dom-if" if="[[loading]]"><paper-spinner active></paper-spinner></template>Link</paper-button>
       </div>
       <div class="news">
       <iframe id="news" class="news-container"

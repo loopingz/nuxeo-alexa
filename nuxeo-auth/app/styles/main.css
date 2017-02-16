@@ -22,6 +22,11 @@ paper-input {
 
 }
 
+.error {
+	margin-top: 10px;
+	color: red;
+}
+
 iframe {
 	border-width: 0px;
 
@@ -31,7 +36,7 @@ iframe {
     max-width: 500px;
     padding-top: 10px;
     background: rgba(255, 255, 255, 0.7);
-    max-height: 300px;
+    height: 300px;
     padding: 20px;
 }
 
@@ -63,6 +68,7 @@ iframe {
 	scroll-behavior: none;
 	position: absolute;
 	right: 40px;
+	top: 10px;
 }
 
 .primary {

@@ -78,9 +78,11 @@ var optimizeHtmlTask = function(src, dest) {
   return gulp.src(src)
     .pipe(assets)
     // Concatenate and minify JavaScript
+    /*
     .pipe($.if('*.js', $.uglify({
       preserveComments: 'some'
     })))
+    */
     // Concatenate and minify styles
     // In case you are still using useref build blocks
     .pipe($.if('*.css', $.minifyCss()))
@@ -124,6 +126,7 @@ gulp.task('images', function() {
 gulp.task('copy', function() {
   var app = gulp.src([
     'app/*',
+    'backend/*',
     '!app/test',
     '!app/elements',
     '!app/bower_components',
