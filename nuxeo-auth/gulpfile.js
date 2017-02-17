@@ -78,11 +78,9 @@ var optimizeHtmlTask = function(src, dest) {
   return gulp.src(src)
     .pipe(assets)
     // Concatenate and minify JavaScript
-    /*
     .pipe($.if('*.js', $.uglify({
       preserveComments: 'some'
     })))
-    */
     // Concatenate and minify styles
     // In case you are still using useref build blocks
     .pipe($.if('*.css', $.minifyCss()))
@@ -139,7 +137,7 @@ gulp.task('copy', function() {
   // Copy over only the bower_components we need
   // These are things which cannot be vulcanized
   var bower = gulp.src([
-    'app/bower_components/{webcomponentsjs,platinum-sw,sw-toolbox,promise-polyfill}/**/*'
+    'app/bower_components/{webcomponentsjs,promise-polyfill}/**/*'
   ]).pipe(gulp.dest(dist('bower_components')));
 
   return merge(app, bower)
