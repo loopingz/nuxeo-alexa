@@ -18,17 +18,11 @@ const languageStrings = {
     'en-US': {
         translation: {
             SKILL_NAME: 'Nuxeo',
-            WELCOME_MESSAGE: "Welcome to %s. The skill is not yet finish.",
+            WELCOME_MESSAGE: "Welcome to Nuxeo. Say help to list commands",
             WELCOME_REPROMT: 'For instructions on what you can say, please say help me.',
-            DISPLAY_CARD_TITLE: '%s  - Recipe for %s.',
-            HELP_MESSAGE: "You can ask questions such as, what\'s the recipe, or, you can say exit...Now, what can I help you with?",
-            HELP_REPROMT: "You can say things like, what\'s the recipe, or you can say exit...Now, what can I help you with?",
+            HELP_MESSAGE: "You can ask questions such as, what\'s my next task, find contracts, get my last documents, or, you can say exit...Now, what can I help you with?",
             STOP_MESSAGE: 'Goodbye!',
-            RECIPE_REPEAT_MESSAGE: 'Try saying repeat.',
-            RECIPE_NOT_FOUND_MESSAGE: "I\'m sorry, I currently do not know ",
-            RECIPE_NOT_FOUND_WITH_ITEM_NAME: 'the recipe for %s. ',
-            RECIPE_NOT_FOUND_WITHOUT_ITEM_NAME: 'that recipe. ',
-            RECIPE_NOT_FOUND_REPROMPT: 'What else can I help with?',
+            RELINK_MESSAGE: 'Your account token is not authorized anymore please redo the link account procedure through Alexa website'
         },
     }
 };
@@ -46,12 +40,45 @@ function loadToken(tokenRaw) {
         baseURL: token[0],
         auth: {
             method: 'token',
-            token: token[1]
+            token: token[2]
         },
         currentUser: token[1]
     });
     return Promise.resolve(nuxeo);
 }
+
+function handleError(err, request, response) {
+    if (err.response && err.response.status && err.response.status === 401) {
+        response.say(t.RELINK_MESSAGE);
+        response.linkAccount();
+    } else {
+        console.log(err);
+    }
+}
+
+app.sessionEnded(function(request, response) {
+  response.say(t.STOP_MESSAGE);
+});
+
+app.launch(function(request, response) {
+  response.say(t.WELCOME_MESSAGE);
+  response.reprompt(t.WELCOME_REPROMT);
+  if (!request.hasSession() || !request.getSession() || !request.getSession().details || !request.getSession().details.accessToken) {
+    response.linkAccount();  
+  }
+});
+
+app.intent('AMAZON.HelpIntent', function(request, response) {
+    response.say(t.HELP_MESSAGE);
+});
+
+app.intent('AMAZON.CancelIntent', function(request, response) {
+    response.say(t.STOP_MESSAGE);
+});
+
+app.intent('AMAZON.StopIntent', function(request, response) {
+    response.say(t.STOP_MESSAGE);
+});
 
 app.intent('GetMyLast', function(request, response) {
     return loadToken(request.getSession().details.accessToken)
@@ -64,13 +91,21 @@ app.intent('GetMyLast', function(request, response) {
         .then(function(doc) {
             if (doc.entries.length == 0) {
                 response.say("I haven't found any documents created by you");
+                return;
             }
             let i = 1;
+            var docs = '';
             for (let id in doc.entries) {
-                response.say("Document " + i++ + " " + doc.entries[id].title + ". ");
+                let res = "Document " + i++ + " " + doc.entries[id].title + "\n";
+                docs += res;
+                response.say(res);
             }
+            response.card({type: 'Standard', title: 'Your last documents', text: docs, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
+        })
+        .catch ( function(err) {
+            handleError(err, request, response);
         });
-};
+});
 
 app.intent('GetMyTasks', function(request, response) {
     return loadToken(request.getSession().details.accessToken)
@@ -80,7 +115,7 @@ app.intent('GetMyTasks', function(request, response) {
             });
             var p2 = nuxeo._http({
                 method: 'GET',
-                url: nuxeo._baseURL + ui/i18n/messages.json,
+                url: nuxeo._baseURL + 'ui/i18n/messages.json'
             });
             return Nuxeo.Promise.all([p1, p2]);
         })
@@ -91,14 +126,19 @@ app.intent('GetMyTasks', function(request, response) {
                 return;
             }
 
-            var labels = JSON.parse(values[1]);
+            var labels = values[1];
             let i = 1;
+            var tasks = '';
             for (let id in doc.entries) {
-                response.say("Task " + i++ + " " + labels[doc.entries[id].name] + ' on workflow ' + labels[doc.entries[id].workflowModelName] + ' due on ' + doc.entries[id].dueDate.substr(0, 10));
+                let res = "Task " + i++ + " " + labels[doc.entries[id].name] + ' on workflow ' + labels[doc.entries[id].workflowModelName] + ' due on ' + doc.entries[id].dueDate.substr(0, 10) + "\n";
+                tasks += res;
+                response.say(res);
             }
-        })
-    });
-};
+            response.card({type: 'Standard', title: 'Your next tasks', text: tasks, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
+        }).catch ( function(err) {
+            handleError(err, request, response);
+        });
+});
 
 app.intent('Search', function(request, response) {
     var criteria = request.slot("Criteria");
@@ -106,9 +146,12 @@ app.intent('Search', function(request, response) {
         .then(function(nuxeo) {
             return nuxeo.repository().query({
                 maxResults: 5,
+                pageSize: 5,
+                currentPageIndex: 0,
+                pageProvider: 'default_search',
+                ecm_fulltext: 'test',
                 sortBy: 'dc:modified',
-                sortOrder: 'desc',
-                query: "SELECT * FROM Document WHERE ecm:fulltext = '" + criteria + "'"
+                sortOrder: 'desc'
             });
         })
         .then(function(doc) {
@@ -116,10 +159,16 @@ app.intent('Search', function(request, response) {
                 response.say("I haven't found any documents matching " + criteria);
             }
             let i = 1;
+            var docs = '';
             for (let id in doc.entries) {
-                response.say("Document " + i++ + " " + doc.entries[id].title + " . ");
+                let res = "Document " + i++ + " " + doc.entries[id].title + "\n";
+                docs += res;
+                response.say(res);
             }
+            response.card({type: 'Standard', title: 'Search for ' + criteria, text: docs, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
+        }).catch ( function(err) {
+            handleError(err, request, response);
         });
-};
+});
 
 exports.handler = app.lambda();
