@@ -19,6 +19,7 @@ const languageStrings = {
         translation: {
             SKILL_NAME: 'Nuxeo',
             WELCOME_MESSAGE: "Welcome to Nuxeo. Say help to list commands",
+            WELCOME_NOLINK_MESSAGE: "Welcome to Nuxeo. Please setup your account through Alexa website",
             WELCOME_REPROMT: 'For instructions on what you can say, please say help me.',
             HELP_MESSAGE: "You can ask questions such as, what\'s my next task, find contracts, get my last documents, or, you can say exit...Now, what can I help you with?",
             STOP_MESSAGE: 'Goodbye!',
@@ -31,7 +32,12 @@ var t = languageStrings['en-US'].translation;
 
 var app = new alexa.app("NUXEO");
 
-function loadToken(tokenRaw) {
+function loadToken(request) {
+    if (!request.hasSession() || !request.getSession().details || !request.getSession().details.accessToken) {
+        // Fake 401 error
+        return Promise.reject({response: {status: 401}});
+    }
+    var tokenRaw = request.getSession().details.accessToken;
     var token = new Buffer(tokenRaw, 'base64').toString().split("|");
     if (token[0][token[0].length - 1] !== '/') {
         token[0] += "/";
@@ -61,15 +67,22 @@ app.sessionEnded(function(request, response) {
 });
 
 app.launch(function(request, response) {
-  response.say(t.WELCOME_MESSAGE);
-  response.reprompt(t.WELCOME_REPROMT);
+  
+  
   if (!request.hasSession() || !request.getSession() || !request.getSession().details || !request.getSession().details.accessToken) {
     response.linkAccount();  
+    response.say(t.WELCOME_NOLINK_MESSAGE);
+  } else {
+    response.say(t.WELCOME_MESSAGE);
+    response.reprompt(t.WELCOME_REPROMT);
+    response.shouldEndSession(false);
   }
 });
 
 app.intent('AMAZON.HelpIntent', function(request, response) {
     response.say(t.HELP_MESSAGE);
+    response.reprompt(t.HELP_MESSAGE);
+    response.shouldEndSession(false);
 });
 
 app.intent('AMAZON.CancelIntent', function(request, response) {
@@ -81,7 +94,7 @@ app.intent('AMAZON.StopIntent', function(request, response) {
 });
 
 app.intent('GetMyLast', function(request, response) {
-    return loadToken(request.getSession().details.accessToken)
+    return loadToken(request)
         .then(function(nuxeo) {
             return nuxeo.repository().query({
                 maxResults: 5,
@@ -108,7 +121,7 @@ app.intent('GetMyLast', function(request, response) {
 });
 
 app.intent('GetMyTasks', function(request, response) {
-    return loadToken(request.getSession().details.accessToken)
+    return loadToken(request)
         .then(function(nuxeo) {
             var p1 = nuxeo.workflows().fetchTasks({
                 actorId: nuxeo.currentUser
@@ -142,7 +155,7 @@ app.intent('GetMyTasks', function(request, response) {
 
 app.intent('Search', function(request, response) {
     var criteria = request.slot("Criteria");
-    return loadToken(request.getSession().details.accessToken)
+    return loadToken(request)
         .then(function(nuxeo) {
             return nuxeo.repository().query({
                 maxResults: 5,
