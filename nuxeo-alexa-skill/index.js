@@ -48,9 +48,9 @@ function loadToken(request) {
         auth: {
             method: 'token',
             token: token[2]
-        },
-        currentUser: token[1]
+        }
     });
+    nuxeo.currentUser = token[1];
     return Promise.resolve(nuxeo);
 }
 
