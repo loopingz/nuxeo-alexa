@@ -9,6 +9,7 @@
  **/
 'use strict';
 
+const striptags = require('striptags');
 const alexa = require('alexa-app');
 const Alexa = require('alexa-sdk');
 const Nuxeo = require('nuxeo');
@@ -109,7 +110,7 @@ app.intent('GetMyLast', function(request, response) {
             let i = 1;
             var docs = '';
             for (let id in doc.entries) {
-                let res = "Document " + i++ + " " + doc.entries[id].title + "\n";
+                let res = "Document " + i++ + " " + striptags(doc.entries[id].title) + "\n";
                 docs += res;
                 response.say(res);
             }
@@ -162,7 +163,7 @@ app.intent('Search', function(request, response) {
                 pageSize: 5,
                 currentPageIndex: 0,
                 pageProvider: 'default_search',
-                ecm_fulltext: 'test',
+                ecm_fulltext: criteria,
                 sortBy: 'dc:modified',
                 sortOrder: 'desc'
             });
@@ -174,7 +175,7 @@ app.intent('Search', function(request, response) {
             let i = 1;
             var docs = '';
             for (let id in doc.entries) {
-                let res = "Document " + i++ + " " + doc.entries[id].title + "\n";
+                let res = "Document " + i++ + " " + striptags(doc.entries[id].title) + "\n";
                 docs += res;
                 response.say(res);
             }
