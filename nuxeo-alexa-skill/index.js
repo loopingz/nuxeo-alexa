@@ -95,18 +95,22 @@ app.intent('AMAZON.StopIntent', function(request, response) {
 });
 
 app.intent('GetMyLast', function(request, response) {
+    // Load the token from the request
     return loadToken(request)
         .then(function(nuxeo) {
+            // Query Nuxeo
             return nuxeo.repository().query({
                 maxResults: 5,
                 query: "SELECT * FROM Document WHERE ecm:mixinType != 'HiddenInNavigation' AND ecm:isProxy = 0 AND ecm:isCheckedInVersion = 0 AND ecm:currentLifeCycleState != 'deleted' AND dc:creator = '" + nuxeo.currentUser + "'"
             });
         })
         .then(function(doc) {
+            // If no document say so
             if (doc.entries.length == 0) {
                 response.say("I haven't found any documents created by you");
                 return;
             }
+            // List documents
             let i = 1;
             var docs = '';
             for (let id in doc.entries) {
@@ -114,19 +118,24 @@ app.intent('GetMyLast', function(request, response) {
                 docs += res;
                 response.say(res);
             }
+            // Add a result card to Alexa UI
             response.card({type: 'Standard', title: 'Your last documents', text: docs, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
         })
         .catch ( function(err) {
+            // Handle errors
             handleError(err, request, response);
         });
 });
 
 app.intent('GetMyTasks', function(request, response) {
     return loadToken(request)
+        // Load the token from the request
         .then(function(nuxeo) {
+            // Retrieve the user tasks
             var p1 = nuxeo.workflows().fetchTasks({
                 actorId: nuxeo.currentUser
             });
+            // Retrieve also the labels
             var p2 = nuxeo._http({
                 method: 'GET',
                 url: nuxeo._baseURL + 'ui/i18n/messages.json'
@@ -135,11 +144,12 @@ app.intent('GetMyTasks', function(request, response) {
         })
         .then(function(values) {
             var doc = values[0];
+            // If no tasks say so
             if (doc.entries.length == 0) {
                 response.say("You have no waiting tasks");
                 return;
             }
-
+            // List the tasks
             var labels = values[1];
             let i = 1;
             var tasks = '';
@@ -148,16 +158,21 @@ app.intent('GetMyTasks', function(request, response) {
                 tasks += res;
                 response.say(res);
             }
+            // Add a card to the result
             response.card({type: 'Standard', title: 'Your next tasks', text: tasks, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
         }).catch ( function(err) {
+            // Handle error
             handleError(err, request, response);
         });
 });
 
 app.intent('Search', function(request, response) {
+    // Retrieve the criteria
     var criteria = request.slot("Criteria");
+    // Load the token from the request
     return loadToken(request)
         .then(function(nuxeo) {
+            // Search Nuxeo
             return nuxeo.repository().query({
                 maxResults: 5,
                 pageSize: 5,
@@ -169,9 +184,12 @@ app.intent('Search', function(request, response) {
             });
         })
         .then(function(doc) {
+            // If no document say so
             if (doc.entries.length == 0) {
                 response.say("I haven't found any documents matching " + criteria);
+                return;
             }
+            // List the results
             let i = 1;
             var docs = '';
             for (let id in doc.entries) {
@@ -179,8 +197,10 @@ app.intent('Search', function(request, response) {
                 docs += res;
                 response.say(res);
             }
+            // Add a result card for the Alexa UI
             response.card({type: 'Standard', title: 'Search for ' + criteria, text: docs, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
         }).catch ( function(err) {
+            // Handle Error
             handleError(err, request, response);
         });
 });
