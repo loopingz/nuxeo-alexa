@@ -4,10 +4,12 @@
   "description": "Nuxeo Alexa Skill",
   "main": "handler.js",
   "dependencies": {
-    "alexa-app": "^3.1.0",
+    "alexa-app": "^4.1.0",
     "alexa-sdk": "^1.0.7",
     "nuxeo": "1.1.1",
-    "striptags": "^3.0.1"
+    "path": "^0.12.7",
+    "striptags": "^3.0.1",
+    "urlencode": "^1.1.0"
   },
   "devDependencies": {},
   "scripts": {

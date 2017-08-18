@@ -13,7 +13,12 @@ const striptags = require('striptags');
 const alexa = require('alexa-app');
 const Alexa = require('alexa-sdk');
 const Nuxeo = require('nuxeo');
-const APP_ID = 'NUXEO'; // TODO replace with your app ID (OPTIONAL).
+const path = require("path");
+const crypto = require('crypto');
+const algo = 'aes-256-ctr';
+const secret = require('./secret');
+const APP_ID = 'NUXEO';
+const urlencode = require('urlencode');
 
 const languageStrings = {
     'en-US': {
@@ -38,8 +43,17 @@ function loadToken(request) {
         // Fake 401 error
         return Promise.reject({response: {status: 401}});
     }
-    var tokenRaw = request.getSession().details.accessToken;
-    var token = new Buffer(tokenRaw, 'base64').toString().split("|");
+    let tokenRaw = request.getSession().details.accessToken;
+    let raw = Buffer.from(tokenRaw, 'base64');
+    let iv = raw.slice(0,16);
+    let enc = raw.slice(16);
+    let cipher = crypto.createCipheriv(algo, secret, iv);
+    let dec = cipher.update(enc, 'ascii', 'ascii');
+    dec += cipher.final('ascii');
+    var token = dec.toString().split("|");
+    if (token.length !== 3) {
+        return Promise.reject({response: {status: 401}});
+    }
     if (token[0][token[0].length - 1] !== '/') {
         token[0] += "/";
     }
@@ -61,6 +75,45 @@ function handleError(err, request, response) {
     } else {
         console.log(err);
     }
+}
+
+function handleList(request, response, docs) {
+    var card = '';
+    let listItems = [];
+    var i = 1;
+    for (let id in docs) {
+        let doc = docs[id];
+        let title = striptags(doc.title);
+        let docPath = path.dirname(doc.path);
+        let url = "https://s3.amazonaws.com/nuxeo-alexa/nuxeo_doc.png";
+        let res = "Document " + i++ + " " + title + "\n";
+        card += res;
+        if (doc.facets.indexOf("Thumbnail") >= 0) {
+            url = "https://nuxeo-auth.loopingz.com/thumbnail.php?token=" + urlencode(request.getSession().details.accessToken) + "&uid=" + doc.uid;
+        }
+        response.say(res);
+        listItems.push(
+        {
+            'token': doc.uid,
+            "image": { 
+                "sources": [
+                    {"url": url}
+                ],
+                "contentDescription": "Thumbnail"
+            },
+            'textContent': {
+                "primaryText": {
+                    "type": "PlainText",
+                    "text": title
+                },
+                "secondaryText": {
+                    "type": "PlainText",
+                    "text": docPath
+                }
+            }
+        });
+    }
+    return {list: listItems, card: card};
 }
 
 app.sessionEnded(function(request, response) {
@@ -111,15 +164,16 @@ app.intent('GetMyLast', function(request, response) {
                 return;
             }
             // List documents
-            let i = 1;
-            var docs = '';
-            for (let id in doc.entries) {
-                let res = "Document " + i++ + " " + striptags(doc.entries[id].title) + "\n";
-                docs += res;
-                response.say(res);
+            var res = handleList(request, response, doc.entries);
+            let template = {
+              "type": "ListTemplate2",
+              "token": "last",
+              "title": "Your last documents",
+              "listItems": res.list
             }
+            response.directive({"type": "Display.RenderTemplate", "template": template });
             // Add a result card to Alexa UI
-            response.card({type: 'Standard', title: 'Your last documents', text: docs, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
+            response.card({type: 'Standard', title: 'Your last documents', text: res.card, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
         })
         .catch ( function(err) {
             // Handle errors
@@ -152,12 +206,34 @@ app.intent('GetMyTasks', function(request, response) {
             // List the tasks
             var labels = values[1];
             let i = 1;
+            var listItems = [];
             var tasks = '';
             for (let id in doc.entries) {
                 let res = "Task " + i++ + " " + labels[doc.entries[id].name] + ' on workflow ' + labels[doc.entries[id].workflowModelName] + ' due on ' + doc.entries[id].dueDate.substr(0, 10) + "\n";
                 tasks += res;
                 response.say(res);
+                listItems.push(
+                    {
+                        'token': i,
+                        'textContent': {
+                            "primaryText": {
+                                "type": "PlainText",
+                                "text": labels[doc.entries[id].name]
+                            },
+                            "secondaryText": {
+                                "type": "PlainText",
+                                "text": doc.entries[id].dueDate.substr(0, 10) + ' - ' + labels[doc.entries[id].workflowModelName]
+                            }
+                        }
+                    });
             }
+            let template = {
+              "type": "ListTemplate1",
+              "token": "workflow",
+              "title": "Your workflow tasks",
+              "listItems": listItems
+            };
+            response.directive({"type": "Display.RenderTemplate", "template": template });
             // Add a card to the result
             response.card({type: 'Standard', title: 'Your next tasks', text: tasks, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
         }).catch ( function(err) {
@@ -189,16 +265,16 @@ app.intent('Search', function(request, response) {
                 response.say("I haven't found any documents matching " + criteria);
                 return;
             }
-            // List the results
-            let i = 1;
-            var docs = '';
-            for (let id in doc.entries) {
-                let res = "Document " + i++ + " " + striptags(doc.entries[id].title) + "\n";
-                docs += res;
-                response.say(res);
+            var res = handleList(request, response, doc.entries);
+            let template = {
+              "type": "ListTemplate2",
+              "token": criteria,
+              "title": "Nuxeo result for " + criteria,
+              "listItems": res.list
             }
+            response.directive({"type": "Display.RenderTemplate", "template": template });
             // Add a result card for the Alexa UI
-            response.card({type: 'Standard', title: 'Search for ' + criteria, text: docs, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
+            response.card({type: 'Standard', title: 'Search for ' + criteria, text: res.card, image: {smallImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png', largeImageUrl: 'https://s3.amazonaws.com/nuxeo-alexa/icon-512x512.png'}});
         }).catch ( function(err) {
             // Handle Error
             handleError(err, request, response);
