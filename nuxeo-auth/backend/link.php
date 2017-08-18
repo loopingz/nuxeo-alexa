@@ -23,8 +23,9 @@ $password = $entityBody->password;
 $client = new NuxeoClient($url, $user, $password);
 
 try {   
-        echo('{"token":"'.encrypt($url."|".$user."|".$client->requestAuthenticationToken('Alexa Nuxeo App', 'Amazon Echo', 'Auth relay', 'Read', false)).'"}');
+	// We should do the URL encode on the browser side but was just more convenient here
+    echo('{"token":"'.urlencode(encrypt($url."|".$user."|".$client->requestAuthenticationToken('Alexa Nuxeo App', 'Amazon Echo', 'Auth relay', 'Read', false))).'"}');
 } catch (NuxeoClientException $ex) {
-        http_response_code($ex->getMessage());
+    http_response_code($ex->getMessage());
 }
 ?>
