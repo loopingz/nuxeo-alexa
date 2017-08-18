@@ -36,8 +36,7 @@ $token = $token[2];
 try {
    $client = new NuxeoClient($url);
    $client = $client->setAuthenticationMethod(new TokenAuthentication($token));
-
-   $doc = $client->automation('Document.Fetch')->param('value', $uid)->execute(Document::className);
+   
    $thurl = $url."/api/v1/id/".$uid."/@rendition/thumbnail";
    $res = $client->get($thurl);
    header("Content-Type: ".$res->getContentType());
